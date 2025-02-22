@@ -3,7 +3,24 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from scipy.spatial import distance
 
-def generate_single_ignition(forest_size=50, center_bias=False):
+# ======================
+# 参数配置 (可自定义)
+# ======================
+FOREST_SIZE = 20
+TREE_DENSITY = 0.7
+BURN_DURATION = 5
+STEPS = 7
+HUMIDITY_BASE = 30
+
+ENV_FACTORS = {
+    'humidity': {'weight': -0.015, 'current': 25}, 
+    # 'wind': {'speed': 25, 'direction': 'E'}  # 移除风力参数
+}
+
+# ======================
+# 火点生成函数
+# ======================
+def generate_single_ignition(forest_size=FOREST_SIZE, center_bias=True):
     """
     生成符合现实火灾特征的单一起火点
     Parameters:
@@ -26,7 +43,7 @@ def generate_single_ignition(forest_size=50, center_bias=False):
     
     return [(x, y)]
 
-def generate_multiple_ignitions(forest_size=50, 
+def generate_multiple_ignitions(forest_size=FOREST_SIZE, 
                               num_fires=3,
                               min_distance=15,
                               cluster_ratio=0,
@@ -97,95 +114,80 @@ def generate_multiple_ignitions(forest_size=50,
     return points[:num_fires]  # 返回不超过目标数量的有效点
 
 # ======================
-# 参数配置 (可自定义)
+# 环境增强的状态系统
 # ======================
-FOREST_SIZE = 50          # 森林尺寸 (N x N)
-TREE_DENSITY = 0.8        # 初始树木密度
-FIRE_SPREAD_PROB = 0.3    # 单步蔓延概率
-BURN_DURATION = 3         # 单棵树燃烧持续时间 (时间步)
-IGNITION_POINTS = generate_multiple_ignitions()  # 初始着火点坐标列表 (可设置多个)
+class EnhancedFireSystem:
+    def __init__(self):
+        # 初始化森林状态
+        self.forest = np.zeros((FOREST_SIZE, FOREST_SIZE, 2), dtype=int)
+        self.forest[:,:,0] = np.random.choice(
+            [0, 1], 
+            size=(FOREST_SIZE, FOREST_SIZE),
+            p=[1-TREE_DENSITY, TREE_DENSITY]
+        )
+        
+        # 设置初始火点
+        self.ignition_points = generate_multiple_ignitions()
+        print(self.ignition_points)
+        for x, y in self.ignition_points:
+            self.forest[x, y, 0] = 2
+            self.forest[x, y, 1] = BURN_DURATION
 
-# ======================
-# 高级状态系统
-# ======================
-# 状态矩阵：每个元素存储 [当前状态, 剩余燃烧时间]
-# 状态编码：
-# 0 = 空地
-# 1 = 未燃烧树木
-# 2 = 燃烧中
-# 3 = 已烧毁
-forest = np.zeros((FOREST_SIZE, FOREST_SIZE, 2), dtype=int)
+    def _get_spread_prob(self):
+        """计算综合蔓延概率"""
+        base = 0.3
+        humidity_effect = 1 + (ENV_FACTORS['humidity']['current']-HUMIDITY_BASE)*ENV_FACTORS['humidity']['weight']
+        return base * humidity_effect
 
-# 初始化森林 (状态层)
-forest[:,:,0] = np.random.choice(
-    [0, 1], 
-    size=(FOREST_SIZE, FOREST_SIZE),
-    p=[1-TREE_DENSITY, TREE_DENSITY]
-)
+    def update_step(self):
+        new_forest = self.forest.copy()
+        spread_prob = self._get_spread_prob()
+        moore_neighbors = [(-1,-1), (-1,0), (-1,1),
+                          (0,-1),          (0,1),
+                          (1,-1),  (1,0), (1,1)]
 
-# 设置初始着火点 (状态层 + 燃烧时间)
-for x, y in IGNITION_POINTS:
-    forest[x, y, 0] = 2
-    forest[x, y, 1] = BURN_DURATION
-
-# ======================
-# 单步状态更新函数
-# ======================
-def update_fire_step():
-    new_forest = forest.copy()
-    moore_neighbors = [(-1,-1), (-1,0), (-1,1),
-                       (0,-1),          (0,1),
-                       (1,-1),  (1,0), (1,1)]
-    
-    for i in range(FOREST_SIZE):
-        for j in range(FOREST_SIZE):
-            current_state = forest[i,j,0]
-            remaining_time = forest[i,j,1]
-            
-            # 燃烧状态处理
-            if current_state == 2:
-                if remaining_time > 1:
-                    new_forest[i,j,1] -= 1  # 减少剩余时间
-                else:
-                    new_forest[i,j,0] = 3  # 燃烧结束变为灰烬
-                    new_forest[i,j,1] = 0
+        for i in range(FOREST_SIZE):
+            for j in range(FOREST_SIZE):
+                current_state = self.forest[i,j,0]
+                remaining_time = self.forest[i,j,1]
+                
+                if current_state == 2:  # 燃烧中
+                    # 更新时间状态
+                    if remaining_time > 1:
+                        new_forest[i,j,1] -= 1
+                    else:
+                        new_forest[i,j,0] = 3
+                        new_forest[i,j,1] = 0
                     
-                # 尝试引燃邻居
-                for dx, dy in moore_neighbors:
-                    ni, nj = i+dx, j+dy
-                    if 0 <= ni < FOREST_SIZE and 0 <= nj < FOREST_SIZE:
-                        if (forest[ni,nj,0] == 1) and (np.random.rand() < FIRE_SPREAD_PROB):
-                            new_forest[ni,nj,0] = 2
-                            new_forest[ni,nj,1] = BURN_DURATION
-    
-    forest[:] = new_forest[:]
+                    # 传播火势
+                    for dx, dy in moore_neighbors:
+                        ni, nj = i+dx, j+dy
+                        if 0<=ni<FOREST_SIZE and 0<=nj<FOREST_SIZE:
+                            if (self.forest[ni,nj,0] == 1) and (np.random.rand() < spread_prob):
+                                new_forest[ni,nj,0] = 2
+                                new_forest[ni,nj,1] = BURN_DURATION
+
+        self.forest = new_forest
 
 # ======================
-# 生成指定时刻的火灾环境
+# 可视化与执行
 # ======================
-def generate_fire_environment(target_step):
-    for _ in range(target_step):
-        update_fire_step()
-    return forest[:,:,0].copy()  # 返回状态层矩阵
-
-# ======================
-# 可视化与输出示例
-# ======================
-if __name__ == "__main__":
-    # 生成第10步的火灾环境
-    target_matrix = generate_fire_environment(10)
-    
-    # 可视化
+def visualize(matrix):
     cmap = colors.ListedColormap(['white','green','red','black'])
     norm = colors.BoundaryNorm([0,1,2,3,4], cmap.N)
-    
-    plt.figure(figsize=(10,10))
-    plt.imshow(target_matrix, cmap=cmap, norm=norm, interpolation='nearest')
-    plt.axis('off')
-    plt.title(f"Fire Environment at Step 10\nBurn Duration={BURN_DURATION}, Spread Prob={FIRE_SPREAD_PROB}")
-    plt.show()
-    
-    # 打印矩阵示例
-    print("环境矩阵示例 (10x10 区域):")
-    print(target_matrix[20:30, 20:30])
 
+    plt.figure(figsize=(10,10))
+    plt.imshow(matrix, cmap=cmap, norm=norm, interpolation='nearest')
+
+    plt.title(
+        f"humidity: {ENV_FACTORS['humidity']['current']}%"
+    )
+    plt.axis('off')
+    plt.show()
+
+if __name__ == "__main__":
+    system = EnhancedFireSystem()
+    for _ in range(STEPS):
+        system.update_step()
+    visualize(system.forest[:,:,0])
+    
