@@ -37,8 +37,6 @@ for _ in range(time_steps):
     forest = new_forest
 
 print(forest)
-import sys
-sys.exit(0)
 
 # 可视化最终的森林状态
 plt.figure(figsize=(10, 10))
