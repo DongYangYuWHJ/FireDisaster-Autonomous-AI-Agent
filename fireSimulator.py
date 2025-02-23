@@ -10,7 +10,7 @@ from scipy.spatial import distance
 # ======================
 FOREST_SIZE = 5
 TREE_DENSITY = 0.6
-BURN_DURATION = 20
+BURN_DURATION = 100
 STEPS = 7
 HUMIDITY_BASE = 30
 
@@ -47,7 +47,7 @@ def generate_single_ignition(forest_size=FOREST_SIZE, center_bias=True):
 
 def generate_multiple_ignitions(forest_size=FOREST_SIZE, 
                               num_fires=3,
-                              min_distance=15,
+                              min_distance=1,
                               cluster_ratio=0,
                               edge_bias=False):
     """
@@ -137,7 +137,7 @@ class EnhancedFireSystem:
 
     def _get_spread_prob(self):
         """计算综合蔓延概率"""
-        base = 0.3
+        base = 0.01
         humidity_effect = 1 + (ENV_FACTORS['humidity']['current']-HUMIDITY_BASE)*ENV_FACTORS['humidity']['weight']
         return base * humidity_effect
 

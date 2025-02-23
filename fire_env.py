@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import fireSimulator
-from matplotlib import colors
+from matplotlib import colors, patches
 matplotlib.use('TkAgg')
 
 class SimpleFireEnv(gym.Env):
@@ -187,7 +187,16 @@ class SimpleFireEnv(gym.Env):
         norm = colors.BoundaryNorm(bounds, cmap.N)
 
         self.img = self.ax.imshow(self.UIgrid, cmap=cmap, norm=norm, interpolation="nearest")
-        print(self.UIgrid)
+        
+        # Add legend (color explanation)
+        legend_patches = [
+            patches.Patch(color='white', label="Empty Ground (Non-Flammable)"),
+            patches.Patch(color='green', label="Trees (Flammable)"),
+            patches.Patch(color='red', label="Burning"),
+            patches.Patch(color='black', label="Burned-out (Ashes)")
+        ]
+        self.ax.legend(handles=legend_patches, loc='upper right')
+        
         self.agent_marker = self.ax.scatter(
             self.agent_pos[1],
             self.agent_pos[0],
