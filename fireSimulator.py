@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from scipy.spatial import distance
 
+
+
 # ======================
 # 参数配置 (可自定义)
 # ======================
@@ -128,7 +130,7 @@ class EnhancedFireSystem:
         
         # 设置初始火点
         self.ignition_points = generate_multiple_ignitions()
-        print(self.ignition_points)
+        # print(self.ignition_points)
         for x, y in self.ignition_points:
             self.forest[x, y, 0] = 2
             self.forest[x, y, 1] = BURN_DURATION
@@ -185,9 +187,77 @@ def visualize(matrix):
     plt.axis('off')
     plt.show()
 
-if __name__ == "__main__":
+
+COMPRESSED_SIZE = 4  # 压缩后的森林大小
+# ======================
+# 添加压缩功能
+# ======================
+def compress_forest(forest_matrix):
+    """
+    将 20x20 的森林状态矩阵压缩成 4x4 的大网格。
+    如果 5x5 小格子中有燃烧（值=2）的像素，则对应的 4x4 格子设为 1，否则设为 0。
+    
+    Parameters:
+        forest_matrix (np.array): 原始森林状态 (20x20)
+
+    Returns:
+        np.array: 压缩后的 4x4 矩阵
+    """
+    block_size = FOREST_SIZE // COMPRESSED_SIZE  # 每个大格子对应的小格子大小 (5x5)
+    compressed_matrix = np.zeros((COMPRESSED_SIZE, COMPRESSED_SIZE), dtype=int)
+
+    for i in range(COMPRESSED_SIZE):
+        for j in range(COMPRESSED_SIZE):
+            x_start, x_end = i * block_size, (i + 1) * block_size
+            y_start, y_end = j * block_size, (j + 1) * block_size
+            if np.any(forest_matrix[x_start:x_end, y_start:y_end] == 2):
+                compressed_matrix[i, j] = 1
+            else:
+                compressed_matrix[i, j] = 0
+
+    return compressed_matrix
+
+def visualize_compressed_forest(compressed_matrix):
+    """
+    可视化压缩后的 4x4 火灾地图，使用绿色表示无火，红色表示有火。
+    
+    Parameters:
+        compressed_matrix (np.array): 4x4 压缩矩阵
+    """
+    cmap = colors.ListedColormap(['green', 'red'])  # 0: 绿, 1: 红
+    norm = colors.BoundaryNorm([0, 0.5, 1], cmap.N)
+
+    plt.figure(figsize=(6, 6))
+    plt.imshow(compressed_matrix, cmap=cmap, norm=norm, interpolation="nearest")
+    plt.title("Compressed Fire Map (4x4)")
+    plt.axis("off")
+    plt.show()
+
+
+def whole_forest_in_bits(forest_matrix):
+    return np.where(forest_matrix == 2, 1.0, 0.0)
+
+
+def compressed_forest_in_bits(compressed_matrix):
+    return np.where(compressed_matrix == 1, 1.0, 0.0)
+
+def init_and_return_compressed_forest():
     system = EnhancedFireSystem()
     for _ in range(STEPS):
         system.update_step()
-    visualize(system.forest[:,:,0])
+    compressed = compress_forest(system.forest[:, :, 0])
     
+    print(compressed_forest_in_bits(compressed))
+    return compressed_forest_in_bits(compressed)
+
+if __name__ == "__main__":
+    # system = EnhancedFireSystem()
+    # for _ in range(STEPS):
+    #     system.update_step()
+    # # visualize(system.forest[:,:,0])
+    # compressed_forest = compress_forest(system.forest[:, :, 0])
+    # # visualize_compressed_forest(compressed_forest)
+    # print(compressed_forest_in_bits(compressed_forest))
+    # print(whole_forest_in_bits(system.forest[:, :, 0]))
+    init_and_return_compressed_forest()
+
