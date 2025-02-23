@@ -1,7 +1,3 @@
 # FireDisaster-Autonomous-AI-Agent
-环境：
-水源作为隔离带不考虑，因为对水源的大小要求较高
-考虑更多因素，例如温度，湿度，天气等等，和火灾的什么参数相关
 
-env的格子状态拓展一下，共4个状态：空地，燃尽，火，绿植
-step的时候实时更新
+This project develops a deep reinforcement learning (DRL) autonomous AI agent to optimize fire suppression strategies in a simulated wildfire environment. The system models fire spread dynamics using cellular automata mechanics, incorporating environmental factors like humidity. The AI agent learns to navigate the environment and efficiently extinguish fires. This approach could be applied to robotics and embedded systems for real-world autonomous firefighting solutions in the future.
