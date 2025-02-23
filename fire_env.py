@@ -4,12 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import fireSimulator
+from matplotlib import colors
 matplotlib.use('TkAgg')
 
 class SimpleFireEnv(gym.Env):
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 100}
 
-    def __init__(self, grid_size=fireSimulator.COMPRESSED_SIZE, fire_spread_prob=0, render_mode=None,max_steps=50):
+    def __init__(self, grid_size=fireSimulator.FOREST_SIZE, fire_spread_prob=0, render_mode=None,max_steps=50):
         super().__init__()
 
         self.grid_size = grid_size
@@ -51,7 +52,10 @@ class SimpleFireEnv(gym.Env):
         # for _ in range(3):
         #     x, y = self.np_random.integers(0, self.grid_size, size=2)
         #     self.grid[x][y] = 1.0
-        self.grid = fireSimulator.init_and_return_compressed_forest()
+        # self.grid = fireSimulator.finish_all_step_and_return()
+        self.envSystem = fireSimulator.init_and_return_new_env()
+        self.UIgrid = self.envSystem.forest[:, :, 0]
+        self.grid = fireSimulator.whole_forest_in_bits(self.UIgrid)
 
         self.agent_pos = self.np_random.integers(0, self.grid_size, size=2)
         self.water = 99999999
@@ -60,11 +64,18 @@ class SimpleFireEnv(gym.Env):
             self._init_render()
         self.current_step=0
         return self._get_obs(), {}
+    
+    def _grid_update(self):
+        self.envSystem.update_step()
+        # print("env update")
+        self.UIgrid = self.envSystem.forest[:, :, 0]
+        self.grid = fireSimulator.whole_forest_in_bits(self.envSystem.forest[:, :, 0])
 
     #小人的step
     def step(self, action):
         self.extinguished_this_step=False
         self.current_step+=1
+        self._grid_update()
         # 执行动作
         if action < 4:
             self._move_agent(action)
@@ -104,6 +115,7 @@ class SimpleFireEnv(gym.Env):
             x, y = self.agent_pos
             if self.grid[x][y] == 1.0:
                 self.grid[x][y] = 0.0
+                self.UIgrid[x][y] = 0.0
                 self.water -= 1
                 self.extinguished_this_step=True
 
@@ -140,15 +152,48 @@ class SimpleFireEnv(gym.Env):
             self.agent_pos
         ]).astype(np.float32)
 
+    # def _init_render(self):
+    #     plt.ion()  # 开启交互模式
+    #     self.fig, self.ax = plt.subplots()
+    #     self.img = self.ax.imshow(self.grid, cmap='hot', vmin=0, vmax=1)
+    #     self.agent_marker = self.ax.scatter(
+    #         self.agent_pos[1],
+    #         self.agent_pos[0],
+    #         c='blue', s=100, marker='s', edgecolors='white'
+    #     )
+    #     plt.title("Simple Fire Environment")
+    #     plt.show(block=False)
+    #     self.fig.canvas.draw()
+
+    # def _update_render(self):
+    #     if self.fig is None:
+    #         self._init_render()
+    #     else:
+    #         self.img.set_data(self.grid)
+    #         self.agent_marker.set_offsets([self.agent_pos[1], self.agent_pos[0]])
+    #         self.fig.canvas.draw()
+    #         self.fig.canvas.flush_events()
+    #         plt.pause(1 / self.metadata['render_fps'])
+
+    from matplotlib import colors
+
     def _init_render(self):
         plt.ion()  # 开启交互模式
         self.fig, self.ax = plt.subplots()
-        self.img = self.ax.imshow(self.grid, cmap='hot', vmin=0, vmax=1)
+
+        # 定义颜色映射：绿色=未燃，红色=着火，黄色=燃烧，黑色=灰烬
+        cmap = colors.ListedColormap(['white','green','red','black'])
+        bounds = [0, 1, 2, 3, 4]  # 设置边界，确保颜色正确映射
+        norm = colors.BoundaryNorm(bounds, cmap.N)
+
+        self.img = self.ax.imshow(self.UIgrid, cmap=cmap, norm=norm, interpolation="nearest")
+        print(self.UIgrid)
         self.agent_marker = self.ax.scatter(
             self.agent_pos[1],
             self.agent_pos[0],
             c='blue', s=100, marker='s', edgecolors='white'
         )
+
         plt.title("Simple Fire Environment")
         plt.show(block=False)
         self.fig.canvas.draw()
@@ -157,11 +202,12 @@ class SimpleFireEnv(gym.Env):
         if self.fig is None:
             self._init_render()
         else:
-            self.img.set_data(self.grid)
+            self.img.set_data(self.UIgrid)
             self.agent_marker.set_offsets([self.agent_pos[1], self.agent_pos[0]])
             self.fig.canvas.draw()
             self.fig.canvas.flush_events()
             plt.pause(1 / self.metadata['render_fps'])
+
 
     def render(self):
         if self.render_mode == 'rgb_array':

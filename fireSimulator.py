@@ -8,9 +8,9 @@ from scipy.spatial import distance
 # ======================
 # 参数配置 (可自定义)
 # ======================
-FOREST_SIZE = 20
-TREE_DENSITY = 0.7
-BURN_DURATION = 5
+FOREST_SIZE = 5
+TREE_DENSITY = 0.6
+BURN_DURATION = 20
 STEPS = 7
 HUMIDITY_BASE = 30
 
@@ -241,23 +241,27 @@ def whole_forest_in_bits(forest_matrix):
 def compressed_forest_in_bits(compressed_matrix):
     return np.where(compressed_matrix == 1, 1.0, 0.0)
 
-def init_and_return_compressed_forest():
+def finish_all_step_and_return():
     system = EnhancedFireSystem()
     for _ in range(STEPS):
         system.update_step()
     compressed = compress_forest(system.forest[:, :, 0])
     
     print(compressed_forest_in_bits(compressed))
-    return compressed_forest_in_bits(compressed)
+    # return compressed_forest_in_bits(compressed)
+    return whole_forest_in_bits(system.forest[:, :, 0])
+
+def init_and_return_new_env():
+    system = EnhancedFireSystem()
+    return system 
 
 if __name__ == "__main__":
-    # system = EnhancedFireSystem()
-    # for _ in range(STEPS):
-    #     system.update_step()
-    # # visualize(system.forest[:,:,0])
-    # compressed_forest = compress_forest(system.forest[:, :, 0])
-    # # visualize_compressed_forest(compressed_forest)
-    # print(compressed_forest_in_bits(compressed_forest))
-    # print(whole_forest_in_bits(system.forest[:, :, 0]))
-    init_and_return_compressed_forest()
+    system = EnhancedFireSystem()
+    for _ in range(STEPS):
+        system.update_step()
+    visualize(system.forest[:,:,0])
+    compressed_forest = compress_forest(system.forest[:, :, 0])
+    # visualize_compressed_forest(compressed_forest)
+    print(compressed_forest_in_bits(compressed_forest))
+    print(whole_forest_in_bits(system.forest[:, :, 0]))
 
