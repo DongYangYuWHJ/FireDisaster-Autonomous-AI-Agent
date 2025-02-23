@@ -130,7 +130,7 @@ while True:
         step_qs = []
 
         # 每 50 个 episode 绘图一次
-        if (episode_num + 1) % 500 == 0:
+        if (episode_num + 1) % 1000 == 0:
             plt.figure(figsize=(10, 6))
             # subplot1: reward
             plt.subplot(3, 1, 1)
@@ -155,6 +155,7 @@ while True:
 
             plt.tight_layout()
             plt.show()  # 或者 plt.pause(0.001) 实时显示
+            torch.save(online_net.state_dict(), f"dddqn_model_{episode_num + 1}.pth")
 
         # 重置环境、增加 episode_num
         state,_ = env.reset()

@@ -13,6 +13,7 @@ TREE_DENSITY = 0.6
 BURN_DURATION = 100
 STEPS = 7
 HUMIDITY_BASE = 30
+BASE = 0.01
 
 ENV_FACTORS = {
     'humidity': {'weight': -0.015, 'current': 25}, 
@@ -137,7 +138,7 @@ class EnhancedFireSystem:
 
     def _get_spread_prob(self):
         """计算综合蔓延概率"""
-        base = 0.01
+        base = BASE
         humidity_effect = 1 + (ENV_FACTORS['humidity']['current']-HUMIDITY_BASE)*ENV_FACTORS['humidity']['weight']
         return base * humidity_effect
 
